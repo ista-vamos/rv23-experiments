@@ -1,0 +1,3 @@
+[submodule "vamos-buffers"]
+	path = vamos-buffers
+	url = https://github.com/ista-vamos/vamos-buffers

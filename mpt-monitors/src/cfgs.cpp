@@ -20,6 +20,22 @@ std::ostream &operator<<(std::ostream &s, const PEStepResult r) {
     return s;
 }
 
+
+template <>
+Cfg_1 &AnyCfg::get<Cfg_1>() {
+  return cfg.cfg1;
+}
+
+template <>
+Cfg_2 &AnyCfg::get<Cfg_2>() {
+  return cfg.cfg2;
+}
+
+template <>
+Cfg_3 &AnyCfg::get<Cfg_3>() {
+  return cfg.cfg3;
+}
+
 void Cfg_1::queueNextConfigurations(Workbag &workbag) {
     /*
     std::cout << "Queueng next configurations:\n";

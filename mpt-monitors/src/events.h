@@ -23,6 +23,7 @@ inline const char *kindToStr(Kind k) {
         case Kind::End:
             return "END";
     }
+    abort();
 }
 
 struct TraceEvent : Event {

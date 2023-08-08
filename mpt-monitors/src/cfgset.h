@@ -17,22 +17,7 @@ struct AnyCfg {
         CfgTy(Cfg_3 &&c) : cfg3(std::move(c)) {}
     } cfg;
 
-    template <typename CfgTy>
-    CfgTy &get() {
-        abort(); /*return std::get<CfgTy>(cfg);*/
-    }
-    template <>
-    Cfg_1 &get() {
-        return cfg.cfg1;
-    }
-    template <>
-    Cfg_2 &get() {
-        return cfg.cfg2;
-    }
-    template <>
-    Cfg_3 &get() {
-        return cfg.cfg3;
-    }
+    template <typename CfgTy> CfgTy &get();
 
     auto index() const -> auto{ return _idx; }
 
@@ -45,15 +30,8 @@ struct AnyCfg {
       return *this;
     }
     */
-    template <typename CfgTy>
-    AnyCfg(CfgTy &&c) : cfg(std::move(c)) {
-        abort();
-    }
-    template <>
     AnyCfg(Cfg_1 &&c) : _idx(0), cfg(std::move(c)) {}
-    template <>
     AnyCfg(Cfg_2 &&c) : _idx(1), cfg(std::move(c)) {}
-    template <>
     AnyCfg(Cfg_3 &&c) : _idx(2), cfg(std::move(c)) {}
 
     AnyCfg(AnyCfg &&rhs) : _idx(rhs._idx) {
@@ -105,6 +83,10 @@ struct AnyCfg {
 #endif
 #endif
 };
+
+template <> Cfg_1 &AnyCfg::get<Cfg_1>();
+template <> Cfg_2 &AnyCfg::get<Cfg_2>();
+template <> Cfg_3 &AnyCfg::get<Cfg_3>();
 
 template <size_t MAX_SIZE>
 struct ConfigurationsSet {

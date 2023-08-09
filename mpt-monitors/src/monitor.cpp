@@ -47,7 +47,7 @@ static void add_new_cfgs(Workbag &workbag, const TracesT &traces,
 
 // returns true to continue with next CFG
 template <typename CfgTy>
-CfgSetStatus move_cfg(Workbag &workbag, CfgTy &cfg) {
+StepResult move_cfg(Workbag &workbag, CfgTy &cfg) {
 #ifdef DEBUG
 #ifdef DEBUG_CFGS
     std::cout << "MOVE " << cfg.name() << ":\n";
@@ -57,86 +57,79 @@ CfgSetStatus move_cfg(Workbag &workbag, CfgTy &cfg) {
 #ifdef MULTIPLE_MOVES
 #error "Not supported yet"
     auto res = cfg.stepN();
-    if (res == PEStepResult::Accept) {
+    if (res == StepResult::Accept) {
         // std::cout << "CFG " << &c << " from " << &C << " ACCEPTED\n";
-        return CFGSET_MATCHED;
+        return StepResult::Accept;
     }
-    if (res == PEStepResult::Reject) {
+    if (res == StepResult::Reject) {
         // std::cout << "CFG " << &c << " from " << &C << " REJECTED\n";
-        return CFGSET_FAILED;
+        return StepResult::Reject;
     }
 
     if (cfg.canProceedN<0>() == 0 && cfg.canProceedN<1>() == 0) {
         // check if the traces are done
         for (size_t idx = 0; idx < 2; ++idx) {
             if (!cfg.trace(idx)->done())
-                return CFGSET_OK;
+                return StepResult::None;
         }
         // std::cout << "CFG discarded becase it has read traces entirely\n";
-        return CFGSET_DONE;
+        return StepResult::Done;
     }
 
 #else  // !MULTIPLE_MOVES
 
     bool no_progress = true;
-    // proceed on trace 1
+
+    // do step on trace 1 (if possible)
     if (cfg.template canProceed<0>()) {
         no_progress = false;
 
         auto res = cfg.template step<0>();
-        if (res == PEStepResult::Accept) {
 #ifdef DEBUG
 #ifdef DEBUG_CFGS
-            std::cout << cfg.name() << "** accepted **\n";
-#endif
-#endif
-            return CFGSET_MATCHED;
+        if (res == StepResult::Accept) {
+            std::cout << "\033[1;35m" << cfg.name() << "** accepted **\033[0m\n";
         }
-        if (res == PEStepResult::Reject) {
-#ifdef DEBUG
-#ifdef DEBUG_CFGS
-            std::cout << cfg.name() << "** rejected **\n";
-#endif
-#endif
-            return CFGSET_FAILED;
+        if (res == StepResult::Reject) {
+            std::cout << "\033[1;35m" << cfg.name() << "** rejected **\033[0m\n";
         }
+#endif
+#endif
+        if (res != StepResult::None)
+            return res;
     }
 
+    // do step on trace 2 (if possible)
     if (cfg.template canProceed<1>()) {
         no_progress = false;
 
         auto res = cfg.template step<1>();
-        if (res == PEStepResult::Accept) {
 #ifdef DEBUG
 #ifdef DEBUG_CFGS
-            std::cout << cfg.name() << "** accepted **\n";
-#endif
-#endif
-            cfg.queueNextConfigurations(workbag);
-            return CFGSET_MATCHED;
+        if (res == StepResult::Accept) {
+            std::cout << "\033[1;35m" << cfg.name() << "** accepted **\033[0m\n";
         }
-        if (res == PEStepResult::Reject) {
-#ifdef DEBUG
-#ifdef DEBUG_CFGS
-            std::cout << cfg.name() << "** rejected **\n";
-#endif
-#endif
-            return CFGSET_FAILED;
+        if (res == StepResult::Reject) {
+            std::cout << "\033[1;35m" << cfg.name() << "** rejected **\033[0m\n";
         }
+#endif
+#endif
+        if (res != StepResult::None)
+            return res;
     }
 
     if (no_progress) {
         // check if the traces are done
         for (size_t idx = 0; idx < 2; ++idx) {
             if (!cfg.trace(idx)->done())
-                return CFGSET_OK;
+                return StepResult::None;
         }
         // std::cout << "CFG discarded becase it has read traces entirely\n";
-        return CFGSET_DONE;
+        return StepResult::Done;
     }
 #endif  // MULTIPLE_MOVES
 
-    return CFGSET_OK;
+    return StepResult::None;
 }
 
 template <typename WorkbagT, typename TracesT, typename StreamsT>
@@ -191,19 +184,21 @@ void update_traces(Inputs &inputs, WorkbagT &workbag, TracesT &traces,
 }
 
 template <typename CfgTy, typename CfgSetTy>
-static bool check_shortest(const CfgTy& c, CfgSetTy& C) {
+static bool check_shortest(const CfgTy &c, CfgSetTy &C) {
+    assert(c.matched());
 
     size_t sz = C.size();
     for (unsigned i = 0; i < sz; ++i) {
-        const auto &c2 = C.get(i);
+        auto &c2 = C.get(i);
         // take every other cfg from this set that has not failed yet
         if (!c2.failed() && (&c != &c2)) {
             if (c2.ge(c)) {
-                assert(!c2.matched() || !c.ge(c2)
-                        && "Two matches with same positions, MPT is not deterministic");
+                assert(!c2.matched() || !c.ge(c2) &&
+                                            "Two matches with same positions, "
+                                            "MPT is not deterministic");
                 // this one cannot be the shortest match as the current
                 // one is a match and is shorter
-                c2.set_done();
+                c2.set_failed();
             } else {
                 return false;
             }
@@ -211,6 +206,11 @@ static bool check_shortest(const CfgTy& c, CfgSetTy& C) {
     }
 
     // this is the shortest-match
+#ifdef DEBUG
+#ifdef DEBUG_CFGS
+    std::cout << c.name() << "** is the shortest match **\n";
+#endif
+#endif
     return true;
 }
 
@@ -233,6 +233,9 @@ int monitor(Inputs &inputs) {
     size_t violations = 0;
 
     while (true) {
+#ifdef DEBUG
+        std::cout << "\033[1;34m--- Iteration start ---\033[0m\n";
+#endif
         /////////////////////////////////
         /// UPDATE TRACES (NEW TRACES AND NEW EVENTS)
         /////////////////////////////////
@@ -283,7 +286,7 @@ int monitor(Inputs &inputs) {
 
             bool non_empty = false;
             size_t sz = C.size();
-            CfgSetStatus status;
+            StepResult status;
             for (unsigned i = 0; i < sz; ++i) {
                 auto &c = C.get(i);
                 switch (c.index()) {
@@ -293,20 +296,30 @@ int monitor(Inputs &inputs) {
                             continue;
 
                         non_empty = true;
-
-                        status = cfg.matched() ? CFGSET_MATCHED : move_cfg<Cfg_1>(new_workbag, cfg);
+                        status = cfg.matched()
+                                     ? StepResult::Accept
+                                     : move_cfg<Cfg_1>(new_workbag, cfg);
                         switch (status) {
-                            case CFGSET_DONE:
-                            case CFGSET_MATCHED:
+                            // this edge matched
+                            case StepResult::Accept:
                                 if (check_shortest(c, C)) {
                                     cfg.queueNextConfigurations(workbag);
                                     C.set_done();
                                     ++wbg_invalid;
-                                    goto outer_loop;
+                                    goto continue_next_cfgset;
                                 }
                                 break;
-                            case CFGSET_OK:
-                            case CFGSET_FAILED: // remove c from C
+                            // neither accepted nor rejected and read the traces
+                            // to the end
+                            case StepResult::Done:
+                                C.set_done();
+                                ++wbg_invalid;
+                                goto continue_next_cfgset;
+                            // the edge rejected
+                            case StepResult::Reject:
+                                cfg.set_failed();
+                            // no result yet
+                            case StepResult::None:
                                 break;
                         }
                         break;
@@ -315,30 +328,41 @@ int monitor(Inputs &inputs) {
                         auto &cfg = c.get<Cfg_2>();
                         if (cfg.failed())
                             continue;
-                        non_empty = true;
 
-                        switch (move_cfg<Cfg_2>(new_workbag, cfg)) {
-                            case CFGSET_MATCHED:
-                                ++violations;
+                        non_empty = true;
+                        status = cfg.matched()
+                                     ? StepResult::Accept
+                                     : move_cfg<Cfg_2>(new_workbag, cfg);
+                        switch (status) {
+                            case StepResult::Accept:
+                                if (check_shortest(c, C)) {
+                                    ++violations;
 #ifdef OUTPUT
-                                std::cout
-                                    << "\033[1;31mOBSERVATIONAL DETERMINISM "
-                                       "VIOLATED!\033[0m\n"
-                                    << "Traces:\n"
-                                    << "  " << cfg.trace(0)->descr() << "\n"
-                                    << "  " << cfg.trace(1)->descr() << "\n";
+                                    std::cout << "\033[1;31mOBSERVATIONAL "
+                                                 "DETERMINISM "
+                                                 "VIOLATED!\033[0m\n"
+                                              << "Traces:\n"
+                                              << "  " << cfg.trace(0)->descr()
+                                              << "\n"
+                                              << "  " << cfg.trace(1)->descr()
+                                              << "\n";
 #endif
 #ifdef EXIT_ON_ERROR
-                                goto end;
+                                    goto end;
 #endif
-                                cfg.queueNextConfigurations(workbag);
-                            // fall-through to discard this set of configs
-                            case CFGSET_DONE:
+                                    cfg.queueNextConfigurations(workbag);
+                                } else {
+                                    // do not discard this config
+                                    break;
+                                }
+                                // fall-through to discard this set of configs
+                            case StepResult::Done:
                                 C.set_done();
                                 ++wbg_invalid;
-                                goto outer_loop;
-                            case CFGSET_OK:
-                            case CFGSET_FAILED: // remove c from C
+                                goto continue_next_cfgset;
+                            case StepResult::Reject:  // remove c from C
+                                cfg.set_failed();
+                            case StepResult::None:
                                 break;
                         }
                         break;
@@ -347,22 +371,33 @@ int monitor(Inputs &inputs) {
                         auto &cfg = c.get<Cfg_3>();
                         if (cfg.failed())
                             continue;
-                        non_empty = true;
 
-                        switch (move_cfg<Cfg_3>(new_workbag, cfg)) {
-                            case CFGSET_MATCHED:
+                        non_empty = true;
+                        status = cfg.matched()
+                                     ? StepResult::Accept
+                                     : move_cfg<Cfg_3>(new_workbag, cfg);
+                        switch (status) {
+                            case StepResult::Accept:
+                                if (check_shortest(c, C)) {
 #ifdef OUTPUT
-                                std::cout << "OD holds for traces `"
-                                          << cfg.trace(0)->descr() << "` and `"
-                                          << cfg.trace(1)->descr() << "`\n";
+                                    std::cout << "OD holds for traces `"
+                                              << cfg.trace(0)->descr()
+                                              << "` and `"
+                                              << cfg.trace(1)->descr() << "`\n";
 #endif
-                                cfg.queueNextConfigurations(workbag);
-                            case CFGSET_DONE:
+                                    cfg.queueNextConfigurations(workbag);
+                                } else {
+                                    // do not discard this config
+                                    break;
+                                }
+                                // fall-through
+                            case StepResult::Done:
                                 C.set_done();
                                 ++wbg_invalid;
-                                goto outer_loop;
-                            case CFGSET_OK:
-                            case CFGSET_FAILED: // remove c from C
+                                goto continue_next_cfgset;
+                            case StepResult::Reject:  // remove c from C
+                                cfg.set_failed();
+                            case StepResult::None:
                                 break;
                         }
                         break;
@@ -373,10 +408,11 @@ int monitor(Inputs &inputs) {
                 }
             }
 
+            // if the cfgset contains no cfgs that still can proceed, remove it
             if (!non_empty)
                 C.set_done();
 
-        outer_loop:
+        continue_next_cfgset:
             (void)1;
         }
 
@@ -405,6 +441,9 @@ int monitor(Inputs &inputs) {
 #endif
             break;
         }
+#ifdef DEBUG
+        std::cout << "\033[1;34m--- Iteration end ---\033[0m\n";
+#endif
     }
 
 end:

@@ -7,12 +7,12 @@
 
 #include "events.h"
 
-enum class PEStepResult { None = 1, Accept = 2, Reject = 3 };
+enum class StepResult { None = 1, Accept = 2, Reject = 3, Done = 4 };
 
-std::ostream &operator<<(std::ostream &s, const PEStepResult r);
+std::ostream &operator<<(std::ostream &s, const StepResult r);
 
 struct PE1 : public PrefixExpression {
-    PEStepResult step(const Event *ev, size_t pos) {
+    StepResult step(const Event *ev, size_t pos) {
         const auto *e = static_cast<const TraceEvent *>(ev);
 
         switch ((Kind)e->get_kind()) {
@@ -23,16 +23,19 @@ struct PE1 : public PrefixExpression {
 #endif
                 match_pos = pos;
                 // M.append(MString::Letter(pos, pos));
-                return PEStepResult::Accept;
+                return StepResult::Accept;
+            case Kind::Dummy:
+                return StepResult::None;
             default:
                 assert(state == 0);
-                return PEStepResult::None;
+                return StepResult::Reject;
         }
+        abort();
     }
 };
 
 struct PE2 : public PrefixExpression {
-    PEStepResult step(const Event *ev, size_t pos) {
+    StepResult step(const Event *ev, size_t pos) {
         const auto *e = static_cast<const TraceEvent *>(ev);
 
 #ifdef ASSUME_SYNC_TRACES
@@ -43,12 +46,12 @@ struct PE2 : public PrefixExpression {
 #endif
                 // M.append(MString::Letter(pos, pos));
                 match_pos = pos;
-                return PEStepResult::Accept;
+                return StepResult::Accept;
             default:
                 assert(state == 0);
-                return PEStepResult::None;
+                return StepResult::None;
         }
-#else // ASSUME_SYNC_TRACES
+#else  // ASSUME_SYNC_TRACES
 
         switch ((Kind)e->get_kind()) {
             case Kind::OutputL:
@@ -58,36 +61,36 @@ struct PE2 : public PrefixExpression {
 #endif
                 // M.append(MString::Letter(pos, pos));
                 match_pos = pos;
-                return PEStepResult::Accept;
-            case Kind::InputL:
-                return PEStepResult::Reject;
+                return StepResult::Accept;
+            case Kind::Dummy:
+                return StepResult::None;
             default:
                 assert(state == 0);
-                return PEStepResult::None;
+                return StepResult::Reject;
         }
     }
-#endif // ASSUME_SYNC_TRACES
-};
+#endif  // ASSUME_SYNC_TRACES
+    };
 
-struct PE3 : public PrefixExpression {
-    PEStepResult step(const Event *ev, size_t pos) {
-        const auto *e = static_cast<const TraceEvent *>(ev);
+    struct PE3 : public PrefixExpression {
+        StepResult step(const Event *ev, size_t pos) {
+            const auto *e = static_cast<const TraceEvent *>(ev);
 
 #ifdef ASSUME_SYNC_TRACES
-        switch ((Kind)e->get_kind()) {
-            case Kind::InputL:
+            switch ((Kind)e->get_kind()) {
+                case Kind::InputL:
 #ifndef NDEBUG
-                state = 1;
+                    state = 1;
 #endif
-                match_pos = pos;
-                // M.append(MString::Letter(pos, pos));
-                return PEStepResult::Accept;
-            default:
-                assert(state == 0);
-                return PEStepResult::None;
-        }
+                    match_pos = pos;
+                    // M.append(MString::Letter(pos, pos));
+                    return StepResult::Accept;
+                default:
+                    assert(state == 0);
+                    return StepResult::None;
+            }
 
-#else // ASSUME_SYNC_TRACES
+#else  // ASSUME_SYNC_TRACES
 
         switch ((Kind)e->get_kind()) {
             case Kind::InputL:
@@ -98,101 +101,109 @@ struct PE3 : public PrefixExpression {
 #endif
                 match_pos = pos;
                 // M.append(MString::Letter(pos, pos));
-                return PEStepResult::Accept;
+                return StepResult::Accept;
+            case Kind::Dummy:
+                return StepResult::None;
             default:
                 assert(state == 0);
-                return PEStepResult::None;
+                return StepResult::Reject;
         }
 
-#endif // ASSUME_SYNC_TRACES
-    }
-};
+#endif  // ASSUME_SYNC_TRACES
+        }
+    };
 
-struct mPE_1 {
-    PE1 _exprs[2];
-    bool _accepted[2] = {false, false};
+    struct mPE_1 {
+        PE1 _exprs[2];
+        bool _accepted[2] = {false, false};
 
-    bool accepted(size_t idx) const { return _accepted[idx]; }
-    bool accepted() const { return _accepted[0] && _accepted[1]; }
+        bool accepted(size_t idx) const { return _accepted[idx]; }
+        bool accepted() const { return _accepted[0] && _accepted[1]; }
 
-    PEStepResult step(size_t idx, const Event *ev, size_t pos) {
-        assert(idx < 2);
-        auto res = _exprs[idx].step(ev, pos);
-        if (res == PEStepResult::Accept)
-            _accepted[idx] = true;
-        return res;
-    }
+        StepResult step(size_t idx, const Event *ev, size_t pos) {
+            assert(idx < 2);
+            auto res = _exprs[idx].step(ev, pos);
+            if (res == StepResult::Accept)
+                _accepted[idx] = true;
+            return res;
+        }
 
-    template <size_t idx>
-    PEStepResult step(const Event *ev, size_t pos) {
-        assert(idx < 2);
-        auto res = _exprs[idx].step(ev, pos);
-        if (res == PEStepResult::Accept)
-            _accepted[idx] = true;
-        return res;
-    }
+        template <size_t idx>
+        StepResult step(const Event *ev, size_t pos) {
+            assert(idx < 2);
+            auto res = _exprs[idx].step(ev, pos);
+            if (res == StepResult::Accept)
+                _accepted[idx] = true;
+            return res;
+        }
 
-    template <typename TraceT>
-    bool cond(TraceT *t1, TraceT *t2) const {
-        return *static_cast<TraceEvent *>(t1->get(_exprs[0].match_pos)) ==
-               *static_cast<TraceEvent *>(t2->get(_exprs[1].match_pos));
-    }
-};
+        template <typename TraceT>
+        bool cond(TraceT *t1, TraceT *t2) const {
+            return *static_cast<TraceEvent *>(t1->get(_exprs[0].match_pos)) ==
+                   *static_cast<TraceEvent *>(t2->get(_exprs[1].match_pos));
+        }
+    };
 
-struct mPE_2 {
-    PE2 _exprs[2];
-    bool _accepted[2] = {false, false};
+    struct mPE_2 {
+        PE2 _exprs[2];
+        bool _accepted[2] = {false, false};
 
-    bool accepted(size_t idx) const { return _accepted[idx]; }
-    bool accepted() const { return _accepted[0] && _accepted[1]; }
+        bool accepted(size_t idx) const { return _accepted[idx]; }
+        bool accepted() const { return _accepted[0] && _accepted[1]; }
 
-    PEStepResult step(size_t idx, const Event *ev, size_t pos) {
-        assert(idx < 2);
-        auto res = _exprs[idx].step(ev, pos);
-        if (res == PEStepResult::Accept)
-            _accepted[idx] = true;
-        return res;
-    }
+        StepResult step(size_t idx, const Event *ev, size_t pos) {
+            assert(idx < 2);
+            auto res = _exprs[idx].step(ev, pos);
+            if (res == StepResult::Accept)
+                _accepted[idx] = true;
+            return res;
+        }
 
-    template <size_t idx>
-    PEStepResult step(const Event *ev, size_t pos) {
-        assert(idx < 2);
-        auto res = _exprs[idx].step(ev, pos);
-        if (res == PEStepResult::Accept)
-            _accepted[idx] = true;
-        return res;
-    }
+        template <size_t idx>
+        StepResult step(const Event *ev, size_t pos) {
+            assert(idx < 2);
+            auto res = _exprs[idx].step(ev, pos);
+            if (res == StepResult::Accept)
+                _accepted[idx] = true;
+            return res;
+        }
 
-    template <typename TraceT>
-    bool cond(TraceT *t1, TraceT *t2) const {
-        return *static_cast<TraceEvent *>(t1->get(_exprs[0].match_pos)) !=
-               *static_cast<TraceEvent *>(t2->get(_exprs[1].match_pos));
-    }
-};
+        template <typename TraceT>
+        bool cond(TraceT *t1, TraceT *t2) const {
+            return *static_cast<TraceEvent *>(t1->get(_exprs[0].match_pos)) !=
+                   *static_cast<TraceEvent *>(t2->get(_exprs[1].match_pos));
+        }
+    };
 
-struct mPE_3 {
-    PE3 _exprs[2];
-    bool _accepted[2] = {false, false};
+    struct mPE_3 {
+        PE3 _exprs[2];
+        bool _accepted[2] = {false, false};
 
-    bool accepted(size_t idx) const { return _accepted[idx]; }
-    bool accepted() const { return _accepted[0] && _accepted[1]; }
+        bool accepted(size_t idx) const { return _accepted[idx]; }
+        bool accepted() const { return _accepted[0] && _accepted[1]; }
 
-    template <size_t idx>
-    PEStepResult step(const Event *ev, size_t pos) {
-        assert(idx < 2);
-        auto res = _exprs[idx].step(ev, pos);
-        if (res == PEStepResult::Accept)
-            _accepted[idx] = true;
-        return res;
-    }
+        template <size_t idx>
+        StepResult step(const Event *ev, size_t pos) {
+            assert(idx < 2);
+            auto res = _exprs[idx].step(ev, pos);
+            if (res == StepResult::Accept)
+                _accepted[idx] = true;
+            return res;
+        }
 
-    template <typename TraceT>
-    bool cond(TraceT *t1, TraceT *t2) const {
-        auto *e1 = static_cast<TraceEvent *>(t1->get(_exprs[0].match_pos));
-        auto *e2 = static_cast<TraceEvent *>(t2->get(_exprs[1].match_pos));
-        return *e1 != *e2 && (((Kind)e1->get_kind() != Kind::OutputL) ||
-                              ((Kind)e2->get_kind() != Kind::OutputL));
-    }
-};
+        template <typename TraceT>
+        bool cond(TraceT *t1, TraceT *t2) const {
+            auto *e1 = static_cast<TraceEvent *>(t1->get(_exprs[0].match_pos));
+            auto *e2 = static_cast<TraceEvent *>(t2->get(_exprs[1].match_pos));
+            return *e1 != *e2 && (
+                    (((Kind)e1->get_kind() != Kind::OutputL) ||
+                     (((Kind)e2->get_kind() != Kind::OutputL) &&
+                      ((Kind)e2->get_kind() != Kind::End)))  &&
+                    (((Kind)e2->get_kind() != Kind::OutputL) ||
+                     (((Kind)e1->get_kind() != Kind::OutputL) &&
+                      ((Kind)e1->get_kind() != Kind::End)))
+                    );
+        }
+    };
 
 #endif

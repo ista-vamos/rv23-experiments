@@ -17,12 +17,15 @@ struct AnyCfg {
         CfgTy(Cfg_3 &&c) : cfg3(std::move(c)) {}
     } cfg;
 
-    template <typename CfgTy> CfgTy &get();
+    template <typename CfgTy>
+    CfgTy &get();
 
     auto index() const -> auto{ return _idx; }
 
-    auto matched() const -> auto { return cfg.none.matched(); }
-    auto failed() const -> auto { return cfg.none.failed(); }
+    auto matched() const -> auto{ return cfg.none.matched(); }
+    auto failed() const -> auto{ return cfg.none.failed(); }
+    auto ge(const AnyCfg &c) const -> auto{ return cfg.none.ge(c.cfg.none); }
+    auto set_failed() -> auto{ return cfg.none.set_failed(); }
 
     AnyCfg(){};
     /*
@@ -87,23 +90,12 @@ struct AnyCfg {
 #endif
 };
 
-template <> Cfg_1 &AnyCfg::get<Cfg_1>();
-template <> Cfg_2 &AnyCfg::get<Cfg_2>();
-template <> Cfg_3 &AnyCfg::get<Cfg_3>();
-
-
-// result of moving the cfgset
-enum CfgSetStatus {
-    // this cfgset is ok
-    CFGSET_OK,
-    // this cfgset matched (some configuration matched)
-    CFGSET_MATCHED,
-    // some configuration from this cfgset failed (some configuration matched)
-    CFGSET_FAILED,
-    // this cfgset matched (some configuration matched)
-    CFGSET_DONE,
-};
-
+template <>
+Cfg_1 &AnyCfg::get<Cfg_1>();
+template <>
+Cfg_2 &AnyCfg::get<Cfg_2>();
+template <>
+Cfg_3 &AnyCfg::get<Cfg_3>();
 
 template <size_t MAX_SIZE>
 struct ConfigurationsSet {
@@ -112,14 +104,14 @@ struct ConfigurationsSet {
     AnyCfg _confs[MAX_SIZE];
 
     void add(AnyCfg &&c) {
-        assert(!_invalid);
+        assert(!done());
         assert(_size < MAX_SIZE);
         _confs[_size++] = std::move(c);
     }
 
     void clear() {
         _size = 0;
-        assert(!_invalid);
+        assert(!done());
     }
 
     ConfigurationsSet(const ConfigurationsSet &) = delete;

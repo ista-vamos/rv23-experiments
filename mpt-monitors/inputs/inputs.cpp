@@ -68,7 +68,7 @@ InputStream *Inputs::getNewInputStream() {
     _streams.emplace_back(stream);
 
     //*reinterpret_cast<TraceEvent **>(&stream->data[0]) = streams[returned %
-    //2];
+    // 2];
     *reinterpret_cast<size_t *>(&stream->data[1]) = 0;
     *reinterpret_cast<size_t *>(&stream->data[2]) = STREAM_LEN;
 

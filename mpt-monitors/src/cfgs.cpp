@@ -5,35 +5,34 @@
 #include "cfgset.h"
 #include "workbag.h"
 
-std::ostream &operator<<(std::ostream &s, const PEStepResult r) {
+std::ostream &operator<<(std::ostream &s, const StepResult r) {
     switch (r) {
-        case PEStepResult::None:
+        case StepResult::None:
             s << "None";
             break;
-        case PEStepResult::Accept:
+        case StepResult::Accept:
             s << "Accept";
             break;
-        case PEStepResult::Reject:
+        case StepResult::Reject:
             s << "Reject";
             break;
     }
     return s;
 }
 
-
 template <>
 Cfg_1 &AnyCfg::get<Cfg_1>() {
-  return cfg.cfg1;
+    return cfg.cfg1;
 }
 
 template <>
 Cfg_2 &AnyCfg::get<Cfg_2>() {
-  return cfg.cfg2;
+    return cfg.cfg2;
 }
 
 template <>
 Cfg_3 &AnyCfg::get<Cfg_3>() {
-  return cfg.cfg3;
+    return cfg.cfg3;
 }
 
 void Cfg_1::queueNextConfigurations(Workbag &workbag) {

@@ -11,11 +11,7 @@
 
 class Workbag;
 
-enum class CfgState {
-    OK,
-    FAILED,
-    MATCHED
-};
+enum class CfgState { OK, FAILED, MATCHED };
 
 ///
 /// Configuration is the state of evaluating an edge
@@ -41,15 +37,12 @@ class Configuration {
         traces[1] = tr1;
     }
 
-    bool ge(const Configuration& rhs) const {
+    bool ge(const Configuration &rhs) const {
         return positions[0] >= rhs.positions[0] &&
                positions[1] >= rhs.positions[1];
     }
 
-
-    bool lt(const Configuration& rhs) const {
-        return !ge(rhs);
-    }
+    bool lt(const Configuration &rhs) const { return !ge(rhs); }
 
     TraceTy *trace(size_t idx) { return traces[idx]; }
     const TraceTy *trace(size_t idx) const { return traces[idx]; }
@@ -95,7 +88,7 @@ class CfgTemplate : public Configuration {
     }
 
     template <size_t idx>
-    PEStepResult step() {
+    StepResult step() {
         assert(canProceed<idx>() && "Step on invalid PE");
         assert(!failed() && !matched());
 
@@ -115,21 +108,21 @@ class CfgTemplate : public Configuration {
         ++positions[idx];
 
         switch (res) {
-            case PEStepResult::Accept:
+            case StepResult::Accept:
                 if (mPE.accepted()) {
                     // std::cout << "mPE matched prefixes\n";
                     if (mPE.cond(trace(0), trace(1))) {
                         // std::cout << "Condition SAT!\n";
                         set_matched();
-                        return PEStepResult::Accept;
+                        return StepResult::Accept;
                     } else {
                         // std::cout << "Condition UNSAT!\n";
                         set_failed();
-                        return PEStepResult::Reject;
+                        return StepResult::Reject;
                     }
                 }
-                return PEStepResult::None;
-            case PEStepResult::Reject:
+                return StepResult::None;
+            case StepResult::Reject:
                 set_failed();
                 // fall-through
             default:
@@ -140,11 +133,11 @@ class CfgTemplate : public Configuration {
 #if 0
   // Do as many steps as possible in this configuration
   template <size_t idx>
-  PEStepResult stepN() {
+  StepResult stepN() {
     assert(!_failed);
 
     if (!canProceed<idx>())
-        return PEStepResult::None;
+        return StepResult::None;
 
     size_t N = canProceedN<idx>();
     while (N-- > 0) {
@@ -163,38 +156,38 @@ class CfgTemplate : public Configuration {
 
         ++positions[idx];
 
-        if (res != PEStepResult::None)
+        if (res != StepResult::None)
             return res;
     }
-    return PEStepResult::None;
+    return StepResult::None;
   }
 
-  PEStepResult stepN() {
+  StepResult stepN() {
     assert((canProceed(0) || canProceed(1)) && "Step on invalid MPE");
     auto res1 = stepN<0>();
     auto res2 = stepN<1>();
 
-    if (res1 == PEStepResult::Reject ||
-        res2 == PEStepResult::Reject) {
+    if (res1 == StepResult::Reject ||
+        res2 == StepResult::Reject) {
         _failed = true;
-        return PEStepResult::Reject;
+        return StepResult::Reject;
     }
 
-    if (res1 == PEStepResult::Accept ||
-        res2 == PEStepResult::Accept) {
+    if (res1 == StepResult::Accept ||
+        res2 == StepResult::Accept) {
       if (mPE.accepted()) {
         // std::cout << "mPE matched prefixes\n";
         if (mPE.cond(trace(0), trace(1))) {
           // std::cout << "Condition SAT!\n";
-          return PEStepResult::Accept;
+          return StepResult::Accept;
         } else {
           // std::cout << "Condition UNSAT!\n";
           _failed = true;
-          return PEStepResult::Reject;
+          return StepResult::Reject;
         }
       }
     }
-    return PEStepResult::None;
+    return StepResult::None;
   }
 #endif
 

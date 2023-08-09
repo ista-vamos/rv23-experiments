@@ -1,5 +1,6 @@
-add_executable(monitor-rvhyper ../src/main_argv.cpp ../monitor_inputs_rvhyper.cpp)
-target_include_directories(monitor-rvhyper PUBLIC ${vamos-buffers_INCLUDE_DIRS})
+add_executable(monitor-rvhyper ../src/main_argv.cpp ../inputs/rvhyper.cpp)
+target_include_directories(monitor-rvhyper PUBLIC ${vamos-buffers_INCLUDE_DIRS}
+				           PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(monitor-rvhyper PRIVATE monitor-od)
 
 #add_executable(monitor-rvhyper-sync ../src/main_argv.cpp ../monitor_inputs_rvhyper_sync.cpp)

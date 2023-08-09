@@ -8,7 +8,6 @@ find_package(vamos-buffers REQUIRED)
 include_directories(${vamos_buffers_INCLUDE_DIRS})
 
 add_subdirectory(src)
-#add_subdirectory(src-gps)
 add_subdirectory(bin)
 add_subdirectory(rvhyper)
 

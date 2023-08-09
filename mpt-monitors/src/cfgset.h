@@ -9,7 +9,7 @@ struct AnyCfg {
         Cfg_1 cfg1;
         Cfg_2 cfg2;
         Cfg_3 cfg3;
-        ConfigurationBase none;
+        Configuration none;
 
         CfgTy() : none() {}
         CfgTy(Cfg_1 &&c) : cfg1(std::move(c)) {}
@@ -20,6 +20,9 @@ struct AnyCfg {
     template <typename CfgTy> CfgTy &get();
 
     auto index() const -> auto{ return _idx; }
+
+    auto matched() const -> auto { return cfg.none.matched(); }
+    auto failed() const -> auto { return cfg.none.failed(); }
 
     AnyCfg(){};
     /*

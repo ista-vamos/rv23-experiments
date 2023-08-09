@@ -241,7 +241,12 @@ int monitor(Inputs &inputs) {
 
             for (unsigned i = 0; i < C.size(); ++i) {
                 auto &cfg = C.get(i);
-                std::cout << cfg.name() << ",";
+                std::cout << cfg.name();
+                if (cfg.matched())
+                    std::cout << ":⊤";
+                if (cfg.failed())
+                    std::cout << ":⊥";
+                std::cout << ",";
             }
             std::cout << "}\n";
         }

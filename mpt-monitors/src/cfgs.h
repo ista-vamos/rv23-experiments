@@ -11,14 +11,20 @@
 
 class Workbag;
 
-class ConfigurationBase {};
+enum class CfgState {
+    OK,
+    FAILED,
+    MATCHED
+};
 
 ///
 /// Configuration is the state of evaluating an edge
-template <typename TraceTy>
-class Configuration : public ConfigurationBase {
+class Configuration {
+   public:
+    using TraceTy = Trace<TraceEvent>;
+
    protected:
-    bool _failed{false};
+    CfgState _state{CfgState::OK};
     size_t positions[2] = {0};
     TraceTy *traces[2];
 
@@ -35,16 +41,30 @@ class Configuration : public ConfigurationBase {
         traces[1] = tr1;
     }
 
+    bool ge(const Configuration& rhs) const {
+        return positions[0] >= rhs.positions[0] &&
+               positions[1] >= rhs.positions[1];
+    }
+
+
+    bool lt(const Configuration& rhs) const {
+        return !ge(rhs);
+    }
+
     TraceTy *trace(size_t idx) { return traces[idx]; }
     const TraceTy *trace(size_t idx) const { return traces[idx]; }
 
     // size_t pos(size_t idx) const { return positions[idx]; }
 
-    bool failed() const { return _failed; }
+    void set_failed() { _state = CfgState::FAILED; }
+    bool failed() const { return _state == CfgState::FAILED; }
+
+    void set_matched() { _state = CfgState::MATCHED; }
+    bool matched() const { return _state == CfgState::MATCHED; }
 };
 
 template <typename MpeTy>
-class CfgTemplate : public Configuration<Trace<TraceEvent>> {
+class CfgTemplate : public Configuration {
    protected:
     MpeTy mPE{};
 
@@ -74,61 +94,10 @@ class CfgTemplate : public Configuration<Trace<TraceEvent>> {
         /* no next configurations by default*/
     }
 
-    /*
-    PEStepResult step(size_t idx) {
-      assert(canProceed(idx) && "Step on invalid PE");
-      assert(!_failed);
-
-      const Event *ev = trace(idx)->get(positions[idx]);
-      assert(ev && "No event");
-      auto res = mPE.step(idx, ev, positions[idx]);
-
-  #ifdef DEBUG
-  #ifdef DEBUG_CFGS
-      std::cout << "(𝜏" << idx << ") t" << trace(idx)->id()
-                << "[" << positions[idx] << "]"
-                << "@" << *static_cast<const TraceEvent *>(ev) << ", "
-                << positions[idx] << " => " << res << "\n";
-  #endif
-  #endif
-
-      ++positions[idx];
-
-      switch (res) {
-      case PEStepResult::Accept:
-        if (mPE.accepted()) {
-          // std::cout << "mPE matched prefixes\n";
-          if (mPE.cond(trace(0), trace(1))) {
-  #ifdef DEBUG
-  #ifdef DEBUG_CFGS
-          std::cout << "MPE matched\n";
-  #endif
-  #endif
-            return PEStepResult::Accept;
-          } else {
-            // std::cout << "Condition UNSAT!\n";
-  #ifdef DEBUG
-  #ifdef DEBUG_CFGS
-          std::cout << "MPE not matched (UNSAT condition)\n";
-  #endif
-  #endif
-            _failed = true;
-            return PEStepResult::Reject;
-          }
-        }
-        return PEStepResult::None;
-      case PEStepResult::Reject:
-        _failed = true;
-        // fall-through
-      default:
-        return res;
-      }
-    }
-  */
     template <size_t idx>
     PEStepResult step() {
         assert(canProceed<idx>() && "Step on invalid PE");
-        assert(!_failed);
+        assert(!failed() && !matched());
 
         const Event *ev = traces[idx]->get(positions[idx]);
         assert(ev && "No event");
@@ -151,16 +120,17 @@ class CfgTemplate : public Configuration<Trace<TraceEvent>> {
                     // std::cout << "mPE matched prefixes\n";
                     if (mPE.cond(trace(0), trace(1))) {
                         // std::cout << "Condition SAT!\n";
+                        set_matched();
                         return PEStepResult::Accept;
                     } else {
                         // std::cout << "Condition UNSAT!\n";
-                        _failed = true;
+                        set_failed();
                         return PEStepResult::Reject;
                     }
                 }
                 return PEStepResult::None;
             case PEStepResult::Reject:
-                _failed = true;
+                set_failed();
                 // fall-through
             default:
                 return res;

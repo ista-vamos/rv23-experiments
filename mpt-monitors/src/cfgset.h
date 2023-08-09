@@ -88,18 +88,25 @@ template <> Cfg_1 &AnyCfg::get<Cfg_1>();
 template <> Cfg_2 &AnyCfg::get<Cfg_2>();
 template <> Cfg_3 &AnyCfg::get<Cfg_3>();
 
+
+// result of moving the cfgset
+enum CfgSetStatus {
+    // this cfgset is ok
+    CFGSET_OK,
+    // this cfgset matched (some configuration matched)
+    CFGSET_MATCHED,
+    // some configuration from this cfgset failed (some configuration matched)
+    CFGSET_FAILED,
+    // this cfgset matched (some configuration matched)
+    CFGSET_DONE,
+};
+
+
 template <size_t MAX_SIZE>
 struct ConfigurationsSet {
     size_t _size{0};
-    bool _invalid{false};
+    bool _done{false};
     AnyCfg _confs[MAX_SIZE];
-
-    /*
-    void add(const AnyCfg &c) {
-      assert(_size < MAX_SIZE);
-      _confs[_size++] = c;
-    }
-    */
 
     void add(AnyCfg &&c) {
         assert(!_invalid);
@@ -117,8 +124,8 @@ struct ConfigurationsSet {
     ConfigurationsSet &operator=(ConfigurationsSet &&) = default;
     ConfigurationsSet() = default;
 
-    void setInvalid() { _invalid = true; }
-    bool invalid() const { return _invalid; }
+    void set_done() { _done = true; }
+    bool done() const { return _done; }
 
     size_t size() const { return _size; }
 

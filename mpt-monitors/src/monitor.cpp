@@ -45,16 +45,9 @@ static void add_new_cfgs(Workbag &workbag, const TracesT &traces,
     }
 }
 
-enum Actions {
-    NONE,
-    CFGSET_MATCHED,
-    CFG_FAILED,
-    CFGSET_DONE,
-};
-
 // returns true to continue with next CFG
 template <typename CfgTy>
-Actions move_cfg(Workbag &workbag, CfgTy &cfg) {
+CfgSetStatus move_cfg(Workbag &workbag, CfgTy &cfg) {
 #ifdef DEBUG
 #ifdef DEBUG_CFGS
     std::cout << "MOVE " << cfg.name() << ":\n";
@@ -71,14 +64,14 @@ Actions move_cfg(Workbag &workbag, CfgTy &cfg) {
     }
     if (res == PEStepResult::Reject) {
         // std::cout << "CFG " << &c << " from " << &C << " REJECTED\n";
-        return CFG_FAILED;
+        return CFGSET_FAILED;
     }
 
     if (cfg.canProceedN<0>() == 0 && cfg.canProceedN<1>() == 0) {
         // check if the traces are done
         for (size_t idx = 0; idx < 2; ++idx) {
             if (!cfg.trace(idx)->done())
-                return NONE;
+                return CFGSET_OK;
         }
         // std::cout << "CFG discarded becase it has read traces entirely\n";
         return CFGSET_DONE;
@@ -106,7 +99,7 @@ Actions move_cfg(Workbag &workbag, CfgTy &cfg) {
             std::cout << cfg.name() << "** rejected **\n";
 #endif
 #endif
-            return CFG_FAILED;
+            return CFGSET_FAILED;
         }
     }
 
@@ -129,7 +122,7 @@ Actions move_cfg(Workbag &workbag, CfgTy &cfg) {
             std::cout << cfg.name() << "** rejected **\n";
 #endif
 #endif
-            return CFG_FAILED;
+            return CFGSET_FAILED;
         }
     }
 
@@ -137,14 +130,14 @@ Actions move_cfg(Workbag &workbag, CfgTy &cfg) {
         // check if the traces are done
         for (size_t idx = 0; idx < 2; ++idx) {
             if (!cfg.trace(idx)->done())
-                return NONE;
+                return CFGSET_OK;
         }
         // std::cout << "CFG discarded becase it has read traces entirely\n";
         return CFGSET_DONE;
     }
 #endif  // MULTIPLE_MOVES
 
-    return NONE;
+    return CFGSET_OK;
 }
 
 template <typename WorkbagT, typename TracesT, typename StreamsT>
@@ -243,8 +236,8 @@ int monitor(Inputs &inputs) {
                 break;
             }
             std::cout << "  > {";
-            if (C.invalid())
-                std::cout << "<invalid>; ";
+            if (C.done())
+                std::cout << "<done>; ";
 
             for (unsigned i = 0; i < C.size(); ++i) {
                 auto &cfg = C.get(i);
@@ -255,8 +248,9 @@ int monitor(Inputs &inputs) {
 #endif
 #endif
         for (auto &C : workbag) {
-            if (C.invalid()) {
+            if (C.done()) {
                 ++wbg_invalid;
+                continue;
             }
 
             bool non_empty = false;
@@ -273,13 +267,12 @@ int monitor(Inputs &inputs) {
                         switch (move_cfg<Cfg_1>(new_workbag, cfg)) {
                             case CFGSET_DONE:
                             case CFGSET_MATCHED:
-                                C.setInvalid();
+                                C.set_done();
                                 ++wbg_invalid;
                                 goto outer_loop;
                                 break;
-                            case NONE:
-                            case CFG_FAILED:
-                                // remove c from C
+                            case CFGSET_OK:
+                            case CFGSET_FAILED: // remove c from C
                                 break;
                         }
                         break;
@@ -306,12 +299,11 @@ int monitor(Inputs &inputs) {
 #endif
                             // fall-through to discard this set of configs
                             case CFGSET_DONE:
-                                C.setInvalid();
+                                C.set_done();
                                 ++wbg_invalid;
                                 goto outer_loop;
-                            case NONE:
-                            case CFG_FAILED:
-                                // remove c from C
+                            case CFGSET_OK:
+                            case CFGSET_FAILED: // remove c from C
                                 break;
                         }
                         break;
@@ -330,12 +322,11 @@ int monitor(Inputs &inputs) {
                                           << cfg.trace(1)->descr() << "`\n";
 #endif
                             case CFGSET_DONE:
-                                C.setInvalid();
+                                C.set_done();
                                 ++wbg_invalid;
                                 goto outer_loop;
-                            case NONE:
-                            case CFG_FAILED:
-                                // remove c from C
+                            case CFGSET_OK:
+                            case CFGSET_FAILED: // remove c from C
                                 break;
                         }
                         break;
@@ -347,15 +338,17 @@ int monitor(Inputs &inputs) {
             }
 
             if (!non_empty)
-                C.setInvalid();
+                C.set_done();
 
         outer_loop:
             (void)1;
         }
 
+        // if at least one third of workbag are invalid (done) configurations,
+        // clean the workbag
         if (!new_workbag.empty() || wbg_invalid >= wbg_size / 3) {
             for (auto &C : workbag) {
-                if (C.invalid())
+                if (C.done())
                     continue;
                 new_workbag.push(std::move(C));
             }

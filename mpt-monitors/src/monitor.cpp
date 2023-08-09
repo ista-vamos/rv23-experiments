@@ -59,7 +59,6 @@ CfgSetStatus move_cfg(Workbag &workbag, CfgTy &cfg) {
     auto res = cfg.stepN();
     if (res == PEStepResult::Accept) {
         // std::cout << "CFG " << &c << " from " << &C << " ACCEPTED\n";
-        cfg.queueNextConfigurations(workbag);
         return CFGSET_MATCHED;
     }
     if (res == PEStepResult::Reject) {
@@ -80,6 +79,7 @@ CfgSetStatus move_cfg(Workbag &workbag, CfgTy &cfg) {
 #else  // !MULTIPLE_MOVES
 
     bool no_progress = true;
+    // proceed on trace 1
     if (cfg.template canProceed<0>()) {
         no_progress = false;
 
@@ -90,7 +90,6 @@ CfgSetStatus move_cfg(Workbag &workbag, CfgTy &cfg) {
             std::cout << cfg.name() << "** accepted **\n";
 #endif
 #endif
-            cfg.queueNextConfigurations(workbag);
             return CFGSET_MATCHED;
         }
         if (res == PEStepResult::Reject) {
@@ -191,6 +190,30 @@ void update_traces(Inputs &inputs, WorkbagT &workbag, TracesT &traces,
     }
 }
 
+template <typename CfgTy, typename CfgSetTy>
+static bool check_shortest(const CfgTy& c, CfgSetTy& C) {
+
+    size_t sz = C.size();
+    for (unsigned i = 0; i < sz; ++i) {
+        const auto &c2 = C.get(i);
+        // take every other cfg from this set that has not failed yet
+        if (!c2.failed() && (&c != &c2)) {
+            if (c2.ge(c)) {
+                assert(!c2.matched() || !c.ge(c2)
+                        && "Two matches with same positions, MPT is not deterministic");
+                // this one cannot be the shortest match as the current
+                // one is a match and is shorter
+                c2.set_done();
+            } else {
+                return false;
+            }
+        }
+    }
+
+    // this is the shortest-match
+    return true;
+}
+
 int monitor(Inputs &inputs) {
     std::vector<std::unique_ptr<Trace<TraceEvent>>> traces;
     std::vector<InputStream *> online_traces;
@@ -260,6 +283,7 @@ int monitor(Inputs &inputs) {
 
             bool non_empty = false;
             size_t sz = C.size();
+            CfgSetStatus status;
             for (unsigned i = 0; i < sz; ++i) {
                 auto &c = C.get(i);
                 switch (c.index()) {
@@ -267,14 +291,19 @@ int monitor(Inputs &inputs) {
                         auto &cfg = c.get<Cfg_1>();
                         if (cfg.failed())
                             continue;
+
                         non_empty = true;
 
-                        switch (move_cfg<Cfg_1>(new_workbag, cfg)) {
+                        status = cfg.matched() ? CFGSET_MATCHED : move_cfg<Cfg_1>(new_workbag, cfg);
+                        switch (status) {
                             case CFGSET_DONE:
                             case CFGSET_MATCHED:
-                                C.set_done();
-                                ++wbg_invalid;
-                                goto outer_loop;
+                                if (check_shortest(c, C)) {
+                                    cfg.queueNextConfigurations(workbag);
+                                    C.set_done();
+                                    ++wbg_invalid;
+                                    goto outer_loop;
+                                }
                                 break;
                             case CFGSET_OK:
                             case CFGSET_FAILED: // remove c from C
@@ -302,6 +331,7 @@ int monitor(Inputs &inputs) {
 #ifdef EXIT_ON_ERROR
                                 goto end;
 #endif
+                                cfg.queueNextConfigurations(workbag);
                             // fall-through to discard this set of configs
                             case CFGSET_DONE:
                                 C.set_done();
@@ -326,6 +356,7 @@ int monitor(Inputs &inputs) {
                                           << cfg.trace(0)->descr() << "` and `"
                                           << cfg.trace(1)->descr() << "`\n";
 #endif
+                                cfg.queueNextConfigurations(workbag);
                             case CFGSET_DONE:
                                 C.set_done();
                                 ++wbg_invalid;

@@ -3,8 +3,10 @@
 set -e
 
 #################################################
-# How many times to repeat the experiments?
+# How many times to repeat the experiments
 REP=10
+# How many processes run in parallel
+NPROC=
 #################################################
 
 if [ "$1" != "rand" -a "$1" != "1t" ]; then
@@ -42,7 +44,7 @@ echo "---------------------------------------------"
 echo "Starting experiments, doing $REP repetitions."
 echo "---------------------------------------------"
 for i in $(seq 1 $REP); do
-	python ./run.py "monitor_$1" | tee --append $OUT
+	python ./run.py "monitor_$1" $NPROC | tee --append $OUT
 done
 echo "---------------------------------------------"
 echo "Done."

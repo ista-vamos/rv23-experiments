@@ -47,7 +47,7 @@ static void add_new_cfgs(Workbag &workbag, const TracesT &traces,
 
 // returns true to continue with next CFG
 template <typename CfgTy>
-StepResult move_cfg(Workbag &workbag, CfgTy &cfg) {
+StepResult move_cfg(CfgTy &cfg) {
 #ifdef DEBUG
 #ifdef DEBUG_CFGS
     std::cout << "MOVE " << cfg.name() << ":\n";
@@ -298,12 +298,12 @@ int monitor(Inputs &inputs) {
                         non_empty = true;
                         status = cfg.matched()
                                      ? StepResult::Accept
-                                     : move_cfg<Cfg_1>(new_workbag, cfg);
+                                     : move_cfg<Cfg_1>(cfg);
                         switch (status) {
                             // this edge matched
                             case StepResult::Accept:
                                 if (check_shortest(c, C)) {
-                                    cfg.queueNextConfigurations(workbag);
+                                    cfg.queueNextConfigurations(new_workbag);
                                     C.set_done();
                                     ++wbg_invalid;
                                     goto continue_next_cfgset;
@@ -318,6 +318,7 @@ int monitor(Inputs &inputs) {
                             // the edge rejected
                             case StepResult::Reject:
                                 cfg.set_failed();
+                                break;
                             // no result yet
                             case StepResult::None:
                                 break;
@@ -332,7 +333,7 @@ int monitor(Inputs &inputs) {
                         non_empty = true;
                         status = cfg.matched()
                                      ? StepResult::Accept
-                                     : move_cfg<Cfg_2>(new_workbag, cfg);
+                                     : move_cfg<Cfg_2>(cfg);
                         switch (status) {
                             case StepResult::Accept:
                                 if (check_shortest(c, C)) {
@@ -350,7 +351,7 @@ int monitor(Inputs &inputs) {
 #ifdef EXIT_ON_ERROR
                                     goto end;
 #endif
-                                    cfg.queueNextConfigurations(workbag);
+                                    cfg.queueNextConfigurations(new_workbag);
                                 } else {
                                     // do not discard this config
                                     break;
@@ -362,6 +363,7 @@ int monitor(Inputs &inputs) {
                                 goto continue_next_cfgset;
                             case StepResult::Reject:  // remove c from C
                                 cfg.set_failed();
+                                break;
                             case StepResult::None:
                                 break;
                         }
@@ -375,7 +377,7 @@ int monitor(Inputs &inputs) {
                         non_empty = true;
                         status = cfg.matched()
                                      ? StepResult::Accept
-                                     : move_cfg<Cfg_3>(new_workbag, cfg);
+                                     : move_cfg<Cfg_3>(cfg);
                         switch (status) {
                             case StepResult::Accept:
                                 if (check_shortest(c, C)) {
@@ -385,7 +387,7 @@ int monitor(Inputs &inputs) {
                                               << "` and `"
                                               << cfg.trace(1)->descr() << "`\n";
 #endif
-                                    cfg.queueNextConfigurations(workbag);
+                                    cfg.queueNextConfigurations(new_workbag);
                                 } else {
                                     // do not discard this config
                                     break;
@@ -397,6 +399,7 @@ int monitor(Inputs &inputs) {
                                 goto continue_next_cfgset;
                             case StepResult::Reject:  // remove c from C
                                 cfg.set_failed();
+                                break;
                             case StepResult::None:
                                 break;
                         }

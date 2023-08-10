@@ -7,6 +7,8 @@ set -e
 REP=10
 # How many processes run in parallel
 NPROC=
+# Python interpreter
+PYTHON=python3
 #################################################
 
 if [ "$1" != "rand" -a "$1" != "1t" ]; then
@@ -44,7 +46,7 @@ echo "---------------------------------------------"
 echo "Starting experiments, doing $REP repetitions."
 echo "---------------------------------------------"
 for i in $(seq 1 $REP); do
-	python ./run.py "monitor_$1" $NPROC | tee --append $OUT
+	$PYTHON ./run.py "monitor_$1" $NPROC | tee --append $OUT
 done
 echo "---------------------------------------------"
 echo "Done."

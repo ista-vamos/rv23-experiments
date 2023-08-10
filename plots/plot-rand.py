@@ -10,6 +10,7 @@ import seaborn as sns
 from os.path import basename, dirname, join
 
 topdir = join(dirname(__file__), "..")
+resdir = join(topdir, "results/")
 
 datait = pd.read_csv(sys.argv[1], sep=" ")
 datait.columns = [
@@ -77,4 +78,4 @@ ax.set(xlabel="Number of traces", ylabel="Maximal size of workbag")
 
 fig = plot.get_figure()
 fig.tight_layout()
-fig.savefig(join(topdir, "plot-rand.pdf"), bbox_inches="tight", dpi=600)
+fig.savefig(join(resdir, "plot-rand.pdf"), bbox_inches="tight", dpi=600)

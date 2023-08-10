@@ -18,7 +18,9 @@ if [ "$1" != "rand" -a "$1" != "1t" ]; then
 fi
 
 TOPDIR=$(readlink -f $(dirname $0))
-OUT="$TOPDIR/results_$1.csv"
+RESDIR=$TOPDIR/results
+mkdir -p $RESDIR
+OUT="$RESDIR/results_$1.csv"
 
 echo "Output file: $OUT"
 

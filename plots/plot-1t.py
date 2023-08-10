@@ -10,6 +10,7 @@ import seaborn as sns
 from os.path import basename, dirname, join
 
 topdir = join(dirname(__file__), "..")
+resdir = join(topdir, "results/")
 
 
 def get_param(mon):
@@ -93,4 +94,4 @@ ax.set(
 
 fig = plot.get_figure()
 fig.tight_layout()
-fig.savefig(join(topdir, "plot-1t.pdf"), bbox_inches="tight", dpi=300)
+fig.savefig(join(resdir, "plot-1t.pdf"), bbox_inches="tight", dpi=300)

@@ -1,14 +1,15 @@
 #!/bin/bash
 
 TOPDIR=$(readlink -f $(dirname $0))
+RESDIR=$TOPDIR/results
 PYTHON=python3
 
 if [ "$1" == "paper" ]; then
 	CSV_RAND="$TOPDIR/csv_from_paper/results_rand.csv"
 	CSV_1T="$TOPDIR/csv_from_paper/results_1t.csv"
 else
-	CSV_RAND="$TOPDIR/results_rand.csv"
-	CSV_1T="$TOPDIR/results_1t.csv"
+	CSV_RAND="$RESDIR/results_rand.csv"
+	CSV_1T="$RESDIR/results_1t.csv"
 fi
 
 cd $TOPDIR

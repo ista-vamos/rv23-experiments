@@ -26,14 +26,14 @@ DOCKER_BUILDKIT=1 docker build . -t rv23-experiments
 To run the built image, use:
 
 ```
-docker run -ti -v "$(pwd)/artifact":/opt/rv23-experiments rv23-experiments
+docker run -ti -v "$(pwd)/results":/opt/rv23-experiments/results rv23-experiments
 ```
 
 This command starts a docker container with experiments ready to run and gives
-you a shell in this container. It also creates a folder `artifact/` in the
-current directory and binds it to the directory with the artifact in the container,
-so you can see access the results of the experiments.
-Feel free to change `$(pwd)/artifact` to a directory of your choice.
+you a shell in this container. It also binds a folder `results/` in the
+current directory to the same directory in the container,
+so you can see access the results of the experiments in the host system.
+Feel free to change `$(pwd)/results` to a directory of your choice.
 
 ## Building without Docker
 
@@ -96,7 +96,7 @@ the `REP` variable in the script). If you run the script multiple times, it will
 prompt the user if the old results should be overwritten or not.
 
 The result of the experiments will be printed to the standard output and also
-saved into `results_rand.csv` and `results_1t.csv`.
+saved into files `results_rand.csv` and `results_1t.csv` in the directory `results`.
 
 ### Customizing
 
@@ -110,7 +110,7 @@ of processes that you want to use.
 ## Plotting the results
 
 There is a script `plot.sh` that takes the generated CSV files and generates plots
-to `plot-rand.pdf` and `plot-1t.pdf`. Simply run it as
+to `plot-rand.pdf` and `plot-1t.pdf` into the `results` directory. Simply run it as
 
 ```
 ./plot.sh

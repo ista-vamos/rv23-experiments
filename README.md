@@ -20,7 +20,7 @@ make -j4
 cd -
 
 # configure and build the project
-cmake .
+cmake . -DCMAKE_BUILD_TYPE=Release
 make -j4
 ```
 

@@ -8,7 +8,7 @@ git checkout https://github.com/ista-vamos/rv23-experiments
 cd rv23-experiments
 
 # initialize vamos-buffers
-git submodule update --init --recursive -- vamos-buffers
+git submodule update --init -- vamos-buffers
 
 # configure and build the project
 cmake .

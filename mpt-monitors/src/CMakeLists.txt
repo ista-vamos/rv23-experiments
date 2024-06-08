@@ -5,7 +5,7 @@
 # limit, we could get stalled in reading events only on one trace until
 # it is processed completely (which might, in theory, happen never).
 # The algorithm described in the paper has this set to 1.
-set(ONETIME_READ_EVENTS_LIMIT 128)
+set(ONETIME_READ_EVENTS_LIMIT 32)
 
 add_library(monitor-od STATIC monitor.cpp private.cpp cfgs.cpp)
 target_include_directories(monitor-od PUBLIC ${vamos-buffers_INCLUDE_DIRS})

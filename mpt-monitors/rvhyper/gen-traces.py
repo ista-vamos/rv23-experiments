@@ -46,6 +46,7 @@ TRACE_NUM = int(sys.argv[1])
 TRACE_LEN = int(sys.argv[2])
 BITS = int(sys.argv[3])
 FORCE_OD = False
+NO_STUTTERING = False
 OUTDIR="."
 if len(sys.argv) == 5:
     params = sys.argv[4].split(",")
@@ -53,6 +54,8 @@ if len(sys.argv) == 5:
         param = param.strip()
         if "force-od" == param:
             FORCE_OD = True
+        elif "no-stuttering" == param:
+            NO_STUTTERING = True
         elif param.startswith("outdir="):
             OUTDIR=param.split("=")[1]
         else:
@@ -87,6 +90,10 @@ while trnum < TRACE_NUM:
     t_tmp = []
     for n in range(0, TRACE_LEN):
         e1 = gen_rand_in_event()
+
+        if NO_STUTTERING and t_tmp:
+            while e1 == t_tmp[-1]:
+                e1 = gen_rand_in_event()
 
         # generate the output event if this is the last event
         # in the last event
@@ -131,6 +138,7 @@ with open(f"{OUTDIR}/od-{BITS}b.hltl", "w") as f:
 
 print(f"Output dir: {OUTDIR}")
 print(f"Forced OD: {FORCE_OD}")
+print(f"No stuttering: {NO_STUTTERING}")
 print(f"Generated {trnum} traces", file=sys.stderr)
 
 exit(0)

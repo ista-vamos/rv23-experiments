@@ -35,6 +35,8 @@ TRACES_NUMS = [500, 1000, 2000, 3000, 4000, 5000]
 #BITS = (1, 2, 4, 8, 10)
 BITS = (2, 8, 10)
 
+RUNEXEC = ["runexec", "--no-container", "--read-only-dir", "/", "--timelimit",  str(TIMEOUT), "--memlimit", str(MEMLIMIT), "--output", "/dev/stdout", "--"]
+
 def errlog(*args):
     with open(join(dirname(__file__), "log.txt"), "a") as logf:
         for a in args:
@@ -92,7 +94,7 @@ def run_rvhyper(arg, traces_dir, files, rvh_args=None, name_suffix=""):
     traces_num, trace_len, bits = arg
     rvh = join(rvhyper_dir, "build/release/rvhyper")
     assert access(rvh, X_OK), f"Cannon find rvhyper binary, assumed is {rvh}"
-    cmd = ["/bin/time", "-f", '%Uuser %Ssystem %eelapsed %PCPU (%Xavgtext+%Davgdata %Mmaxresident)k', rvh]
+    cmd = [rvh]
     if rvh_args:
         cmd += rvh_args
     cmd += ["-S", f"{traces_dir}/od-{bits}b.hltl"] + files
@@ -110,7 +112,7 @@ def run_rvhyper(arg, traces_dir, files, rvh_args=None, name_suffix=""):
     env["LD_LIBRARY_PATH"] = ":".join([join(rvhyper_dir, "lib"),
                                        SPOT_LIBDIR])
 
-    p = Popen(cmd, stderr=PIPE, stdout=PIPE, cwd=traces_dir, env=env, preexec_fn=os.setsid)
+    p = Popen(RUNEXEC + cmd, stderr=PIPE, stdout=PIPE, cwd=traces_dir, env=env, preexec_fn=os.setsid)
     try:
         out, err = p.communicate(timeout=TIMEOUT)
         if p.returncode != 0:
@@ -128,6 +130,11 @@ def run_rvhyper(arg, traces_dir, files, rvh_args=None, name_suffix=""):
     cpu_time=None
     wall_time=None
     mem=None
+
+    # returnvalue=0
+    # walltime=0.0048832379980012774s
+    # cputime=0.002279951s
+    # memory=172032B
 
     if p.returncode == 0:
         for line in err.splitlines():
@@ -156,10 +163,10 @@ def run_rvhyper(arg, traces_dir, files, rvh_args=None, name_suffix=""):
 
 def run_hnl(arg, traces_dir, files):
     traces_num, trace_len, bits = arg
-    cmd = ["/bin/time", "-f", '%Uuser %Ssystem %eelapsed %PCPU (%Xavgtext+%Davgdata %Mmaxresident)k', join(f"{hnl_dir}-{bits}b", "monitor")]
+    cmd = [join(f"{hnl_dir}-{bits}b", "monitor")]
     cmd += files
     #print(cmd)
-    p = Popen(cmd, stderr=PIPE, stdout=PIPE, cwd=traces_dir, preexec_fn=os.setsid)
+    p = Popen(RUNEXEC + cmd, stderr=PIPE, stdout=PIPE, cwd=traces_dir, preexec_fn=os.setsid)
     try:
         out, err = p.communicate(timeout=TIMEOUT)
     except TimeoutExpired:
@@ -209,11 +216,10 @@ def run_hnl(arg, traces_dir, files):
 
 def run_mpt(arg, traces_dir, files):
     traces_num, trace_len, bits = arg
-    cmd = ["/bin/time", "-f", '%Uuser %Ssystem %eelapsed %PCPU (%Xavgtext+%Davgdata %Mmaxresident)k',
-           mpt_binary]
+    cmd = [mpt_binary]
     cmd += files
     #print(cmd)
-    p = Popen(cmd, stderr=PIPE, stdout=PIPE, cwd=traces_dir, preexec_fn=os.setsid)
+    p = Popen(RUNEXEC + cmd, stderr=PIPE, stdout=PIPE, cwd=traces_dir, preexec_fn=os.setsid)
     try:
         out, err = p.communicate(timeout=TIMEOUT)
     except TimeoutExpired:
@@ -234,6 +240,8 @@ def run_mpt(arg, traces_dir, files):
     cpu_time=None
     wall_time=None
     mem=None
+    print(err)
+    print(out)
     if p.returncode in (0, 1):
         for line in out.splitlines():
             line = line.strip()

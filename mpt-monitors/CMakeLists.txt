@@ -4,6 +4,12 @@ set(CMAKE_VERBOSE_MAKEFILE 1)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if (vamos_DIR)
+set(vamos-buffers_DIR ${vamos_DIR}/vamos-buffers/cmake/vamos-buffers)
+set(vamos-common_DIR ${vamos_DIR}/vamos-common/cmake/vamos-common)
+set(vamos-sources_DIR ${vamos_DIR}/vamos-sources/cmake/vamos-sources)
+endif()
+
 find_package(vamos-buffers REQUIRED)
 include_directories(${vamos_buffers_INCLUDE_DIRS})
 
